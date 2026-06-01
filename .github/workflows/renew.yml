@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Force refresh workflow status
-        uses: gautamkrishnar/keepalive-workflow@v2
+        uses: gitea.com/sekedus/keepalive-workflow@v2  # 修改为镜像源
         with:
           time_elapsed: 0  # 设置为0，强制每次运行都刷新
           use_api: true     # 使用API方式，不产生额外提交记录
