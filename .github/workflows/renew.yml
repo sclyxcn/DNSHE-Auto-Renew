@@ -8,7 +8,12 @@ on:
     - cron: '0 0 1 * *'
   workflow_dispatch: # 依然保留手动触发按钮，方便测试
 
+# 工作流级别的权限（必需）
+permissions:
+  actions: write
+
 jobs:
+  # 主任务：域名续期
   renew:
     runs-on: ubuntu-latest
     steps:
@@ -31,3 +36,19 @@ jobs:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           PUSHPLUS_TOPIC: ${{ secrets.PUSHPLUS_TOPIC }}
         run: python renew_domains.py
+
+  # 保活任务：强制每次运行都刷新（独立job，与主任务并行）
+  keepalive:
+    name: Keep Workflow Alive
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write  # 保活任务需要此权限
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Force refresh workflow status
+        uses: gautamkrishnar/keepalive-workflow@v2
+        with:
+          time_elapsed: 0  # 设置为0，强制每次运行都刷新
+          use_api: true     # 使用API方式，不产生额外提交记录
