@@ -2,53 +2,36 @@ name: DNSHE Domain Auto Renew
 
 on:
   schedule:
-    # 表达式说明：分钟 小时 天 月 星期
-    # 0 0 1 * * 表示 UTC 时间每月 1 日 00:00
-    # 对应北京时间 (UTC+8) 为每月 1 日 08:00
     - cron: '0 0 1 * *'
-  workflow_dispatch: # 依然保留手动触发按钮，方便测试
-
-# 工作流级别的权限（必需）
-permissions:
-  actions: write
+  workflow_dispatch:
 
 jobs:
-  # 主任务：域名续期
   renew:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Install dependencies
         run: pip install requests
-
       - name: Run renew script
         env:
-          # 以下变量需在仓库 Settings -> Secrets -> Actions 中配置 
           DNSHE_API_KEY: ${{ secrets.DNSHE_API_KEY }}
           DNSHE_API_SECRET: ${{ secrets.DNSHE_API_SECRET }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           PUSHPLUS_TOPIC: ${{ secrets.PUSHPLUS_TOPIC }}
         run: python renew_domains.py
 
-  # 保活任务：强制每次运行都刷新（独立job，与主任务并行）
   keepalive:
     name: Keep Workflow Alive
     runs-on: ubuntu-latest
-    permissions:
-      actions: write  # 保活任务需要此权限
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Force refresh workflow status
-        uses: gitea.com/sekedus/keepalive-workflow@v2  # 修改为镜像源
-        with:
-          time_elapsed: 0  # 设置为0，强制每次运行都刷新
-          use_api: true     # 使用API方式，不产生额外提交记录
+      - name: Trigger GitHub activity to prevent auto-disable
+        run: |
+          curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=1" \
+            > /dev/null
